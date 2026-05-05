@@ -185,10 +185,8 @@ Echo's interpretation quality is directly proportional to corpus quality.
 | NIST SP 800-82 Rev 3 — ICS Security Guide | ✅ Included |
 | Malhotra et al. (2015) — LSTM for Anomaly Detection | ✅ Included |
 | Project Argus Technical Report | ✅ Included |
-| Kravchik & Shabtai (2018) — Detecting Cyber Attacks in ICS | ⬇ Recommended |
+| Kravchik & Shabtai (2018) — Detecting Cyber Attacks in ICS | ✅ Included |
 | CISA ICS Recommended Practices | ⬇ Recommended |
-
-> Adding Kravchik & Shabtai (2018) alone will significantly improve faithfulness scores — it covers exactly the attack patterns Argus detects and is directly cited in the Argus technical report.
 
 ---
 
