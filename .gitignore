@@ -1,0 +1,32 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment
+.env
+
+# Streamlit
+.streamlit/
+
+# Models & Scalers (generated during training)
+*.keras
+*.pkl
+*.h5
+
+# Data
+# Ignore datasets and generated logs, but keep the PDF corpus
+*.csv
+data/anomaly_logs.json
+
+# Vector Store (generated from corpus)
+vectorstore/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
