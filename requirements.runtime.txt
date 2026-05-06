@@ -1,0 +1,7 @@
+pandas
+numpy<2
+joblib
+scikit-learn
+tensorflow==2.16.1
+streamlit
+plotly

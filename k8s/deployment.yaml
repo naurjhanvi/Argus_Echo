@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-echo
+  namespace: argus-echo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: argus-echo
+  template:
+    metadata:
+      labels:
+        app: argus-echo
+    spec:
+      containers:
+        - name: argus-echo
+          image: us-central1-docker.pkg.dev/argus-echo/argus-echo/argus-echo:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8501
+          env:
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: argus-echo-secrets
+                  key: GROQ_API_KEY
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 30
+            periodSeconds: 15

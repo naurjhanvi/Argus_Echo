@@ -174,6 +174,14 @@ python -c "from echo.ingest import ingest_data_folder; print(ingest_data_folder(
 streamlit run app.py
 ```
 
+The app expects these trained artifacts at runtime:
+
+- `anomaly_detection_model.keras`
+- `scaler.pkl`
+- `model_config.pkl`
+
+If they are missing, the app now stops immediately with a clear startup error.
+
 ---
 
 ## ICS Security Corpus
@@ -200,6 +208,91 @@ The target architecture for production will bypass cloud deployment entirely in 
 - Replace Groq with a locally quantized LLM (e.g., Mistral 7B via Ollama).
 - Deploy via K3s (lightweight Kubernetes) directly onto on-premise industrial servers.
 - Ensure zero telemetry data leaves the facility's localized network.
+
+---
+
+## Production Deployment Philosophy (GKE)
+
+*Note: The project has fully Dockerized services and Kubernetes manifests written for a Google Kubernetes Engine (GKE) deployment. I am currently blocked on cloud credits, but the deployment configuration is entirely in place. I mention this because it reflects how I approach engineering: I don't stop at making something work locally. I want to understand how it runs in production.*
+
+This repository includes a container-first deployment path for a public demo URL and for showcasing `Docker`, `Kubernetes`, `GKE`, `LLMs`, and `RAG` together in one project.
+
+### What is included
+
+- `Dockerfile` for a production-style Streamlit container
+- `.streamlit/config.toml` for headless cloud runtime
+- `k8s/namespace.yaml` for environment isolation
+- `k8s/deployment.yaml` with health probes and resource requests
+- `k8s/service.yaml` exposing the app through a public `LoadBalancer`
+- `k8s/secret.example.yaml` for the Groq API key
+
+### Before You Deploy
+
+Make sure the image build context contains:
+
+- `anomaly_detection_model.keras`
+- `scaler.pkl`
+- `model_config.pkl`
+- your `data/` PDF corpus if Echo retrieval should be available immediately
+- a valid `GROQ_API_KEY`
+
+### 1. Build the Docker image
+
+```bash
+docker build -t argus-echo:latest .
+docker run -p 8501:8501 --env GROQ_API_KEY=your_key_here argus-echo:latest
+```
+
+The container uses `requirements.runtime.txt` instead of the full research dependency set in `requirements.txt`. This keeps the deployment image smaller and avoids pulling heavyweight training and evaluation packages that are not required by the current Streamlit app.
+
+### 2. Push to Google Artifact Registry
+
+```bash
+gcloud auth configure-docker us-central1-docker.pkg.dev
+
+docker tag argus-echo:latest \
+  us-central1-docker.pkg.dev/PROJECT_ID/argus-echo/argus-echo:latest
+
+docker push \
+  us-central1-docker.pkg.dev/PROJECT_ID/argus-echo/argus-echo:latest
+```
+
+### 3. Deploy to GKE
+
+Create a GKE cluster, then apply the manifests:
+
+```bash
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/secret.example.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+```
+
+Update `k8s/deployment.yaml` with your real `PROJECT_ID`. Replace the placeholder in `k8s/secret.example.yaml` with your real Groq key before applying it.
+
+### 4. Get the public URL
+
+```bash
+kubectl get svc -n argus-echo
+```
+
+When the external IP is assigned, the app is reachable at:
+
+```text
+http://EXTERNAL_IP/
+```
+
+For a cleaner portfolio URL, point a custom domain at the load balancer IP through Google Cloud DNS.
+
+### Resume Framing
+
+This deployment demonstrates:
+
+- containerized ML plus RAG application delivery with Docker
+- Kubernetes workload orchestration on GKE
+- secret management for LLM API access
+- health-checked public service exposure through a cloud load balancer
+- end-to-end applied AI workflow: anomaly detection, retrieval, grounding, and operator guidance
 
 ---
 

@@ -1,10 +1,12 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-from tensorflow.keras.models import load_model
 import joblib
+import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
-from argus_logger import log_anomaly, infer_attack_hint  
+import streamlit as st
+from pathlib import Path
+from tensorflow.keras.models import load_model
+
+from argus_logger import infer_attack_hint, log_anomaly
 
 st.set_page_config(page_title="Universal Edge AI Diagnostic", layout="wide")
 st.title("Universal Edge AI Diagnostic Tool")
@@ -13,11 +15,15 @@ st.markdown("""
 **Target Domain:** Safety-Critical Infrastructure (ICS, Aerospace, Power Grids)
 """)
 
+MODEL_PATH = Path("anomaly_detection_model.keras")
+SCALER_PATH = Path("scaler.pkl")
+CONFIG_PATH = Path("model_config.pkl")
+
 @st.cache_resource
 def load_system():
-    model = load_model("anomaly_detection_model.keras")
-    scaler = joblib.load("scaler.pkl")
-    config = joblib.load("model_config.pkl")
+    model = load_model(MODEL_PATH)
+    scaler = joblib.load(SCALER_PATH)
+    config = joblib.load(CONFIG_PATH)
     return model, scaler, config
 
 try:
@@ -26,7 +32,17 @@ try:
     TIME_STEPS = config['time_steps']
     st.sidebar.success(f"System Loaded. AI Expects {EXPECTED_FEATURES} Input Signals.")
 except Exception as e:
-    st.error(f"Error loading model assets. {e}")
+    missing_assets = [
+        str(path) for path in (MODEL_PATH, SCALER_PATH, CONFIG_PATH) if not path.exists()
+    ]
+    if missing_assets:
+        st.error(
+            "Missing required model assets: "
+            + ", ".join(missing_assets)
+            + ". Add the trained artifacts before starting the app."
+        )
+    else:
+        st.error(f"Error loading model assets. {e}")
     st.stop()
 
 def create_sequence(data, time_steps):
