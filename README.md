@@ -1,6 +1,6 @@
 # Argus Echo
 
-[Project walkthrough (Loom)](https://www.loom.com/share/ae84ea9d2b4740f680059a0cd4ee66a7)
+[![Watch the Argus Echo walkthrough](https://cdn.loom.com/sessions/thumbnails/ae84ea9d2b4740f680059a0cd4ee66a7-with-play.gif)](https://www.loom.com/share/ae84ea9d2b4740f680059a0cd4ee66a7)
 
 Universal Edge AI diagnostics for industrial telemetry.
 
