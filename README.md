@@ -1,5 +1,7 @@
 # Argus Echo
 
+[Project walkthrough (Loom)](https://www.loom.com/share/ae84ea9d2b4740f680059a0cd4ee66a7)
+
 Universal Edge AI diagnostics for industrial telemetry.
 
 Argus Echo is a Streamlit application that lets a user train a facility-specific anomaly detection model from normal telemetry, run diagnostics on new telemetry, and ask Echo for operator guidance grounded in an ICS security knowledge base.
@@ -199,7 +201,7 @@ Large CSV files can still be uploaded, but the model flow samples/caps rows befo
 ### Install Python Dependencies
 
 ```powershell
-cd C:\Users\ranij\projects\argus_echo
+cd C:\Users\<username>\projects\Argus_Echo
 python -m venv venv
 .\venv\Scripts\activate
 pip install -r requirements.txt
@@ -223,6 +225,7 @@ You can override storage paths with environment variables:
 $env:ARGUS_STORAGE_DIR = "ml"
 $env:ARGUS_DB_PATH = "ml\argus_echo.db"
 $env:GROQ_API_KEY = "your_groq_api_key"
+$env:GROQ_MODEL = "openai/gpt-oss-120b"
 streamlit run app.py
 ```
 
@@ -331,7 +334,7 @@ argus_echo/
 - SQLite
 - FAISS
 - LangChain community vector store integration
-- Groq Llama 3.3 70B for Echo guidance
+- Groq GPT-OSS 120B for Echo guidance (override with `GROQ_MODEL`)
 - Docker
 - Google Artifact Registry
 - Google Kubernetes Engine

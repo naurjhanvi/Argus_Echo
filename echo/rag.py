@@ -13,6 +13,7 @@ from echo.embeddings import HashingEmbeddings
 load_dotenv()
 
 VECTORSTORE_PATH = str(Path(os.getenv("ARGUS_STORAGE_DIR", "ml")) / "vectorstore" / "echo")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
 ICS_PROMPT = """You are Echo, an ICS cybersecurity analyst integrated into the Argus
 Edge AI anomaly detection system. You are advising a human operator in a
@@ -41,7 +42,7 @@ PROMPT = PromptTemplate(template=ICS_PROMPT, input_variables=["context", "questi
 def get_echo_llm():
     return ChatGroq(
         api_key=os.getenv("GROQ_API_KEY"),
-        model_name="llama-3.3-70b-versatile",
+        model_name=GROQ_MODEL,
         temperature=0.2,
     )
 

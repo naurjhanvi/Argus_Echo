@@ -11,12 +11,13 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from datasets import Dataset
 
 load_dotenv()
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
 def get_evaluator_llm():
     return LangchainLLMWrapper(
         ChatGroq(
             api_key=os.getenv("GROQ_API_KEY"),
-            model_name="llama-3.3-70b-versatile",
+            model_name=GROQ_MODEL,
             temperature=0
         )
     )
