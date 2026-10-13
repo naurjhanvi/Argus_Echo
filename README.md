@@ -1,14 +1,10 @@
 # Argus Echo
 
-**An industrial AI/ML and MLOps portfolio project:** train facility-specific anomaly detectors, run telemetry diagnostics, and retrieve grounded operator guidance from ICS security documents.
+**Industrial telemetry anomaly detection with retrieval-grounded operator guidance.**
 
-Argus Echo combines a time-series machine-learning workflow with a containerized Streamlit application and a Kubernetes deployment. It is designed to demonstrate the full path from data and model artifacts to an operable application, while making the current production limitations visible.
+Argus Echo trains facility-specific anomaly detectors from normal telemetry, analyzes new sensor data, and provides operator guidance grounded in industrial control system (ICS) security documents.
 
-> **Live demo:** Currently offline. Previous address: `http://34.121.158.211`.
->
-> **Note:** Argus Echo was hosted on Google Cloud using the free allowance. Billing for the project has stopped, so the GKE service is offline. Restoring it requires an active billing account and may incur charges; some cloud resources may also need to be recovered. See [deployment recovery](docs/deployment-recovery.md) before attempting a redeploy.
-
-[Watch the project walkthrough](https://www.loom.com/share/ae84ea9d2b4740f680059a0cd4ee66a7)
+<a href="https://www.loom.com/share/ae84ea9d2b4740f680059a0cd4ee66a7"><img src="https://cdn.loom.com/sessions/thumbnails/ae84ea9d2b4740f680059a0cd4ee66a7-efaed40b8c2af93e.gif" alt="Click to watch the Argus Echo project walkthrough" width="720"></a>
 
 ## Project at a glance
 
@@ -47,7 +43,7 @@ flowchart LR
     K8S --> SVC[LoadBalancer Service]
 ```
 
-The application runs as a single Kubernetes replica today. SQLite and user artifacts are stored on a `ReadWriteOnce` persistent volume. This keeps the demo simple, but it limits horizontal scaling and concurrent write throughput. More detail is in [architecture and MLOps](docs/architecture-and-mlops.md).
+The application runs as a single Kubernetes replica. SQLite and user artifacts are stored on a persistent volume.
 
 ## Repository map
 
@@ -61,7 +57,6 @@ The application runs as a single Kubernetes replica today. SQLite and user artif
 ├── echo/                       Retrieval, indexing, embeddings, and evaluation
 ├── data/                       ICS security and anomaly-detection references
 ├── k8s/                        Kubernetes namespace, deployment, and service
-├── docs/                       Architecture, operations, and portfolio notes
 ├── .github/workflows/          Container build automation
 ├── Dockerfile                  Runtime container definition
 └── requirements*.txt           Development and container dependencies
@@ -92,7 +87,7 @@ docker build -t argus-echo:local .
 docker run --rm -p 8501:8501 -e GROQ_API_KEY=your_groq_api_key argus-echo:local
 ```
 
-For GKE setup, secret creation, rollout, and public endpoint recovery, follow [deployment recovery](docs/deployment-recovery.md). Do not apply `k8s/secret.example.yaml` as a live secret: it contains a placeholder. Create the secret from your own API key as described in the runbook.
+The Kubernetes manifests are in `k8s/`. Configure `GROQ_API_KEY` as a Kubernetes Secret before deploying; `k8s/secret.example.yaml` is only a placeholder template.
 
 ## Model and data notes
 
@@ -100,14 +95,7 @@ For GKE setup, secret creation, rollout, and public endpoint recovery, follow [d
 - Rolling variance features are added per sensor.
 - Training and diagnostic files must produce the same feature layout.
 - Training and inference row caps default to 20,000 and can be configured through `ARGUS_MAX_TRAINING_ROWS` and `ARGUS_MAX_DIAGNOSTIC_ROWS`.
-- The demo threshold and model quality need facility-specific validation before operational use. It is a portfolio/demo application, not a certified industrial safety system.
 - User identity and operational metadata use SQLite; trained models and generated data live on local or mounted storage.
-
-## Portfolio framing
-
-This project can support applications for **AI/ML Engineer**, **DevOps Engineer**, and especially **MLOps Engineer** roles. The strongest story is the end-to-end path: data preparation, model training and inference, artifact persistence, application packaging, health checks, Kubernetes operations, and a retrieval-based AI feature.
-
-See [portfolio and interview guide](docs/portfolio.md) for role-specific talking points, resume bullets, and an honest list of current gaps and next steps.
 
 ## Technology
 
