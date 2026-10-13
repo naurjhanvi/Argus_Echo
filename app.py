@@ -47,7 +47,7 @@ from persistence import (
 
 ANOMALY_THRESHOLD = 0.13
 
-st.set_page_config(page_title="Universal Edge AI Diagnostic", layout="wide")
+st.set_page_config(page_title="Argus Echo | Industrial MLOps", layout="wide")
 init_db()
 
 
@@ -536,11 +536,14 @@ def render_echo_tab(user):
         st.caption(f"Sources retrieved: {result['sources_used']}")
 
 
-st.title("Universal Edge AI Diagnostic Tool")
+st.title("Argus Echo")
 st.markdown(
     """
-**System Status:** Ready for Analysis
-**Target Domain:** Safety-Critical Infrastructure (ICS, Aerospace, Power Grids)
+Industrial telemetry anomaly detection with a complete model-to-deployment workflow.
+
+**AI/ML:** Train an LSTM autoencoder on normal telemetry and investigate reconstruction-error anomalies.
+
+**MLOps / DevOps:** Persist model artifacts, run diagnostics, and deploy the Streamlit service with Docker and Kubernetes.
 """
 )
 

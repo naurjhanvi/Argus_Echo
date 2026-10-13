@@ -1,351 +1,114 @@
 # Argus Echo
 
-<a href="https://www.loom.com/share/ae84ea9d2b4740f680059a0cd4ee66a7"><img src="https://cdn.loom.com/sessions/thumbnails/ae84ea9d2b4740f680059a0cd4ee66a7-efaed40b8c2af93e.gif" alt="Watch the Argus Echo walkthrough" width="720"></a>
+**An industrial AI/ML and MLOps portfolio project:** train facility-specific anomaly detectors, run telemetry diagnostics, and retrieve grounded operator guidance from ICS security documents.
 
-[Watch the video on Loom](https://www.loom.com/share/ae84ea9d2b4740f680059a0cd4ee66a7)
+Argus Echo combines a time-series machine-learning workflow with a containerized Streamlit application and a Kubernetes deployment. It is designed to demonstrate the full path from data and model artifacts to an operable application, while making the current production limitations visible.
 
-Universal Edge AI diagnostics for industrial telemetry.
+> **Live demo:** Currently offline. Previous address: `http://34.121.158.211`.
+>
+> **Note:** Argus Echo was hosted on Google Cloud using the free allowance. Billing for the project has stopped, so the GKE service is offline. Restoring it requires an active billing account and may incur charges; some cloud resources may also need to be recovered. See [deployment recovery](docs/deployment-recovery.md) before attempting a redeploy.
 
-Argus Echo is a Streamlit application that lets a user train a facility-specific anomaly detection model from normal telemetry, run diagnostics on new telemetry, and ask Echo for operator guidance grounded in an ICS security knowledge base.
+[Watch the project walkthrough](https://www.loom.com/share/ae84ea9d2b4740f680059a0cd4ee66a7)
 
-This repository is an extension of the original Project Argus work. Argus Echo turns that core ML/anomaly-detection foundation into a deployed multi-user diagnostic app with accounts, saved model artifacts, diagnostic history, Echo guidance, Docker packaging, and GKE deployment files.
+## Project at a glance
 
-To understand the core ML approach, model motivation, anomaly detection logic, and original research direction, refer to Project Argus:
+| Area | What this project demonstrates |
+| --- | --- |
+| AI/ML | LSTM autoencoder for time-series anomaly detection; telemetry preprocessing; rolling variance features; model, scaler, and configuration artifacts |
+| MLOps | Per-user model records and artifacts; repeatable training and inference paths; row limits; health probes; persistent storage; a container build workflow |
+| DevOps | Docker image; Kubernetes Deployment, Service, namespace, and persistent volume claim; resource requests and limits; readiness and liveness probes |
+| Applied AI | Retrieval-augmented ICS guidance using a local vector index and Groq generation |
 
-https://github.com/naurjhanvi/project-argus
+## User workflow
 
-Live app:
+1. Create an account or log in.
+2. Upload normal-operation telemetry and train a facility-specific LSTM autoencoder.
+3. Upload telemetry for diagnostics and review reconstruction-error anomalies and history.
+4. Ask Echo for an explanation grounded in the indexed ICS security corpus.
 
-http://34.121.158.211
+## Architecture
 
-
-## What The App Does
-
-Argus Echo has three main flows:
-
-1. Train Model
-
-   Upload a normal-operation telemetry CSV. Argus preprocesses numeric sensor columns, adds rolling variance features, trains an LSTM autoencoder, and saves the trained model for that user account.
-
-2. Run Diagnostics
-
-   Upload a telemetry CSV to analyze. Argus loads the selected trained model, checks the feature shape, computes reconstruction error, highlights anomalous windows, stores the run, and shows charts/history in the dashboard.
-
-3. Echo Guidance
-
-   Build a knowledge base from the documents in `data/`, then ask Echo for operator guidance based on the latest anomaly. Echo uses retrieval augmented generation with Groq to produce ICS-focused response text.
-
-## Current Production URL
-
-The current deployed app is available at:
-
-```text
-http://34.121.158.211
+```mermaid
+flowchart LR
+    U[Operator] --> UI[Streamlit app]
+    UI --> PRE[Telemetry preprocessing<br/>numeric sensors + rolling variance]
+    PRE --> TRAIN[LSTM autoencoder training]
+    TRAIN --> ART[Model + scaler + config artifacts]
+    ART --> DIAG[Diagnostic inference<br/>reconstruction error]
+    DIAG --> DB[(SQLite metadata<br/>and anomaly history)]
+    DIAG --> RAG[Echo retrieval and guidance]
+    CORPUS[ICS security documents] --> IDX[FAISS knowledge index]
+    IDX --> RAG
+    RAG --> LLM[Groq API]
+    RAG --> UI
+    UI --> DOCKER[Docker image]
+    DOCKER --> K8S[Kubernetes Deployment]
+    K8S --> PVC[(Persistent volume)]
+    K8S --> SVC[LoadBalancer Service]
 ```
 
-Anyone with the URL can open the app. They still need to create an account or log in inside the app before training models or running diagnostics.
+The application runs as a single Kubernetes replica today. SQLite and user artifacts are stored on a `ReadWriteOnce` persistent volume. This keeps the demo simple, but it limits horizontal scaling and concurrent write throughput. More detail is in [architecture and MLOps](docs/architecture-and-mlops.md).
 
-## Current Deployment
-
-The app is deployed on Google Cloud using:
-
-- Google Kubernetes Engine: `argus-echo-cluster`
-- GCP project: `argus-echo`
-- Region: `us-central1`
-- Artifact Registry image:
-  `us-central1-docker.pkg.dev/argus-echo/argus-echo/argus-echo:latest`
-- Kubernetes namespace: `argus-echo`
-- Kubernetes deployment: `argus-echo`
-- Kubernetes service: `argus-echo`
-- Service type: `LoadBalancer`
-- Public IP: `34.121.158.211`
-
-The container serves Streamlit on port `8501`. The Kubernetes service exposes it publicly on port `80`.
-
-## Data Storage
-
-Current production storage is file-based and SQLite-based.
-
-Inside the GKE pod:
+## Repository map
 
 ```text
-/app/ml
+.
+├── app.py                      Streamlit UI and user workflows
+├── argus_model.py              Telemetry preprocessing and LSTM training
+├── persistence.py              SQLite users, model metadata, and run history
+├── argus_logger.py             Anomaly hint and local logging helpers
+├── train_model.py              Command-line training entry point
+├── echo/                       Retrieval, indexing, embeddings, and evaluation
+├── data/                       ICS security and anomaly-detection references
+├── k8s/                        Kubernetes namespace, deployment, and service
+├── docs/                       Architecture, operations, and portfolio notes
+├── .github/workflows/          Container build automation
+├── Dockerfile                  Runtime container definition
+└── requirements*.txt           Development and container dependencies
 ```
 
-This path is mounted from the Kubernetes persistent volume claim:
+## Run locally
 
-```text
-argus-echo-storage
-```
-
-The database is:
-
-```text
-/app/ml/argus_echo.db
-```
-
-The SQLite database stores:
-
-- user accounts
-- password salts and password hashes
-- model metadata
-- diagnostic run metadata
-- anomaly records
-- Echo answers
-
-Model and diagnostic artifacts are stored under:
-
-```text
-/app/ml/users/<user_id>/models/<model_id>/
-/app/ml/users/<user_id>/diagnostics/<run_id>/
-```
-
-Echo vector indexes are stored under:
-
-```text
-/app/ml/vectorstore/echo/
-```
-
-### Important Storage Limitation
-
-This is acceptable for a demo or small controlled test, but it is not the right final architecture for many users.
-
-The current app runs one pod with SQLite on a persistent volume. If many users train models or run diagnostics at the same time, the app can become slow or hit SQLite write contention. Scaling to multiple pods would also be awkward because the PVC is configured as `ReadWriteOnce`.
-
-For a real multi-user production version, move to:
-
-- Supabase Postgres for users, model metadata, diagnostic runs, anomalies, and Echo answers
-- Supabase Storage or Google Cloud Storage for trained model files, scalers, configs, diagnostic outputs, and uploaded documents
-- background jobs for training and diagnostics instead of doing heavy work inside the Streamlit request/session process
-
-## How Users Use The App
-
-1. Open the live URL:
-
-   ```text
-   http://34.121.158.211
-   ```
-
-2. Create an account from the sidebar.
-
-3. Open the `Train Model` tab.
-
-4. Upload a CSV containing normal-operation telemetry.
-
-5. Choose:
-
-   - model name
-   - training epochs
-   - batch size
-
-6. Click `Train Model`.
-
-7. Wait for training to finish. The app saves the model under the logged-in account.
-
-8. Open the `Run Diagnostics` tab.
-
-9. Select the trained model.
-
-10. Upload a telemetry CSV for analysis.
-
-11. Select sensors to visualize.
-
-12. Click `Run Diagnostics`.
-
-13. Review anomaly scores, charts, anomaly records, and diagnostic history.
-
-14. Open `Echo Guidance`.
-
-15. If the Echo knowledge base is not built yet, click `Build Knowledge Base From data/`.
-
-16. Ask Echo for guidance on the latest anomaly.
-
-## CSV Expectations
-
-The training and diagnostic files should use the same telemetry shape.
-
-The app:
-
-- drops timestamp/date/time/label-like columns
-- keeps numeric columns
-- adds rolling variance features for every numeric sensor
-- expects the diagnostic CSV to produce the same feature count as the trained model
-
-Example:
-
-```text
-87 raw numeric sensors -> 174 model features
-```
-
-If a diagnostic file has a different sensor layout, train a new model for that layout.
-
-## Current Runtime Limits
-
-The deployed app currently caps rows to keep memory and CPU usage reasonable inside the GKE pod:
-
-```text
-ARGUS_MAX_TRAINING_ROWS=20000
-ARGUS_MAX_DIAGNOSTIC_ROWS=20000
-```
-
-Large CSV files can still be uploaded, but the model flow samples/caps rows before training or diagnostics.
-
-## Local Development
-
-### Prerequisites
-
-- Python 3.10+
-- Docker Desktop, only if building or testing the container locally
-- Google Cloud SDK, only if deploying to GCP
-- kubectl, only if deploying to GKE
-- Groq API key for Echo guidance
-
-### Install Python Dependencies
+Requires Python 3.10+ and a Groq API key for generated Echo responses. Core model training and diagnostics do not require that key.
 
 ```powershell
-cd C:\Users\<username>\projects\Argus_Echo
-python -m venv venv
-.\venv\Scripts\activate
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-```
-
-### Run Locally
-
-```powershell
-streamlit run app.py
-```
-
-By default, local data is stored under:
-
-```text
-ml/
-```
-
-You can override storage paths with environment variables:
-
-```powershell
 $env:ARGUS_STORAGE_DIR = "ml"
 $env:ARGUS_DB_PATH = "ml\argus_echo.db"
 $env:GROQ_API_KEY = "your_groq_api_key"
-$env:GROQ_MODEL = "openai/gpt-oss-120b"
 streamlit run app.py
 ```
 
-## Docker Build
+The app opens at `http://localhost:8501`. The local storage directory is ignored by Git.
 
-Build the production image:
+## Build and deploy
 
-```powershell
-docker build -t us-central1-docker.pkg.dev/argus-echo/argus-echo/argus-echo:latest .
-```
-
-Push it:
+GitHub Actions builds the Docker image on pushes to `main` and pull requests. It does not publish to a registry or deploy to a cloud account; deployment remains an explicit operator action.
 
 ```powershell
-docker push us-central1-docker.pkg.dev/argus-echo/argus-echo/argus-echo:latest
+docker build -t argus-echo:local .
+docker run --rm -p 8501:8501 -e GROQ_API_KEY=your_groq_api_key argus-echo:local
 ```
 
-Docker Desktop is only needed while building, tagging, running, or pushing images from your machine. Once the image is pushed and Kubernetes is running it in GKE, closing Docker Desktop does not stop the public website.
+For GKE setup, secret creation, rollout, and public endpoint recovery, follow [deployment recovery](docs/deployment-recovery.md). Do not apply `k8s/secret.example.yaml` as a live secret: it contains a placeholder. Create the secret from your own API key as described in the runbook.
 
-## Deploy To GKE
+## Model and data notes
 
-Set the project:
+- Timestamp, date, time, and label-like columns are dropped; numeric sensor columns are retained.
+- Rolling variance features are added per sensor.
+- Training and diagnostic files must produce the same feature layout.
+- Training and inference row caps default to 20,000 and can be configured through `ARGUS_MAX_TRAINING_ROWS` and `ARGUS_MAX_DIAGNOSTIC_ROWS`.
+- The demo threshold and model quality need facility-specific validation before operational use. It is a portfolio/demo application, not a certified industrial safety system.
+- User identity and operational metadata use SQLite; trained models and generated data live on local or mounted storage.
 
-```powershell
-gcloud config set project argus-echo
-```
+## Portfolio framing
 
-Get cluster credentials:
+This project can support applications for **AI/ML Engineer**, **DevOps Engineer**, and especially **MLOps Engineer** roles. The strongest story is the end-to-end path: data preparation, model training and inference, artifact persistence, application packaging, health checks, Kubernetes operations, and a retrieval-based AI feature.
 
-```powershell
-gcloud container clusters get-credentials argus-echo-cluster --region us-central1 --project argus-echo
-```
+See [portfolio and interview guide](docs/portfolio.md) for role-specific talking points, resume bullets, and an honest list of current gaps and next steps.
 
-Apply Kubernetes manifests:
+## Technology
 
-```powershell
-kubectl apply -f k8s\namespace.yaml
-kubectl apply -f k8s\secret.example.yaml
-kubectl apply -f k8s\deployment.yaml
-kubectl apply -f k8s\service.yaml
-```
-
-Restart the deployment after pushing a new `latest` image:
-
-```powershell
-kubectl -n argus-echo rollout restart deployment/argus-echo
-kubectl -n argus-echo rollout status deployment/argus-echo --timeout=300s
-```
-
-Check pods:
-
-```powershell
-kubectl -n argus-echo get pods -o wide
-```
-
-Check the public service:
-
-```powershell
-kubectl -n argus-echo get svc
-```
-
-Check logs:
-
-```powershell
-kubectl -n argus-echo logs deployment/argus-echo --tail=100
-```
-
-Health check:
-
-```powershell
-curl http://34.121.158.211/_stcore/health
-```
-
-## Project Structure
-
-```text
-argus_echo/
-|-- app.py                    Streamlit UI and app workflow
-|-- argus_model.py            Telemetry preprocessing, LSTM model, training helpers
-|-- persistence.py            SQLite users, models, diagnostics, anomalies
-|-- argus_logger.py           Attack hint helper logic
-|-- Dockerfile                Production container image
-|-- requirements.txt          Python dependencies
-|-- data/                     ICS/security corpus documents for Echo
-|-- echo/
-|   |-- embeddings.py         Local deterministic embeddings for FAISS
-|   |-- ingest.py             Builds Echo FAISS knowledge base
-|   |-- rag.py                Echo retrieval and Groq generation
-|   |-- query_builder.py      Converts anomaly records into Echo prompts
-|-- k8s/
-|   |-- namespace.yaml        Kubernetes namespace
-|   |-- secret.example.yaml   Secret manifest template/current secret manifest
-|   |-- deployment.yaml       GKE deployment and PVC
-|   |-- service.yaml          Public LoadBalancer service
-```
-
-## Technology Used
-
-- Python
-- Streamlit
-- TensorFlow/Keras
-- scikit-learn
-- pandas
-- NumPy
-- Plotly
-- SQLite
-- FAISS
-- LangChain community vector store integration
-- Groq GPT-OSS 120B for Echo guidance (override with `GROQ_MODEL`)
-- Docker
-- Google Artifact Registry
-- Google Kubernetes Engine
-- Kubernetes LoadBalancer service
-
-## Operational Notes
-
-- The app currently runs as one GKE replica.
-- The app stores state in `/app/ml` through a persistent volume claim.
-- The public URL remains live when the local laptop is closed, as long as the GKE cluster, pod, service, and billing remain active.
-- New deployments require Docker Desktop only for building/pushing from the local machine.
-- Supabase is the recommended next database/storage step before inviting many concurrent users.
+Python · pandas · NumPy · TensorFlow/Keras · scikit-learn · Streamlit · SQLite · FAISS · LangChain · Groq · Docker · Kubernetes · Google Kubernetes Engine
