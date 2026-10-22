@@ -34,12 +34,12 @@ not establish a physical fault or cyberattack. The uploaded file and row are the
 available location evidence unless verified site-location metadata is present.
 
 For operator action questions, VoiceOps first looks for an exact sensor
-procedure. If none is available, it can use relevant CISA incident-response references for
-general verification and escalation checks, clearly labels them as general ICS
-guidance, and creates a human-review incident. It does not recommend equipment
-setpoint changes, resets, bypasses, or control actions without an approved site
-procedure. Bolna receives the same current event context and reads the Argus
-response, source names, retrieval relevance, and review status during the call.
+procedure. If none is available, it can use relevant CISA incident-response
+references for general verification and escalation checks. It labels this as
+general ICS guidance and creates a human-review incident. It does not recommend
+equipment setpoint changes, resets, bypasses, or control actions without an
+approved site procedure. During a call, Bolna receives the current event context
+and reads the Argus response, source names, retrieval relevance, and review status.
 
 ## Architecture
 
@@ -92,7 +92,7 @@ The application runs as a single Kubernetes replica. SQLite and user artifacts a
 └── requirements*.txt           Development and container dependencies
 ```
 
-## Run locally
+## Run locally with Python
 
 Requires Python 3.10+ and a Groq API key for generated Echo responses. Core model training and diagnostics do not require that key.
 
@@ -106,7 +106,8 @@ $env:GROQ_API_KEY = "your_groq_api_key"
 streamlit run app.py
 ```
 
-Build the local FAISS index from `data/` using the VoiceOps tab. Docker builds the index on first startup if absent. To run the Bolna-facing API locally in a second terminal:
+Build the local FAISS index from `data/` using the VoiceOps tab. To run the
+Bolna-facing API locally in a second terminal:
 
 ```powershell
 $env:ARGUS_VOICEOPS_API_TOKEN = "a-long-random-secret"
@@ -114,21 +115,97 @@ $env:ARGUS_BOLNA_WEBHOOK_TOKEN = "a-different-long-random-secret"
 uvicorn voiceops_api:app --host 0.0.0.0 --port 8000
 ```
 
-The VoiceOps API is `POST /api/voiceops/answer` with `Authorization: Bearer <ARGUS_VOICEOPS_API_TOKEN>` and JSON fields `question`, optional `transcript`, optional `interaction_id`, and optional `latest_anomaly` event context. Its JSON response includes `answer`, `spoken_answer`, source excerpts and names, retrieval `confidence`, `confidence_label`, `escalate`, and `model_version`. Configure the Bolna custom function to send the current question and `latest_anomaly` context, then have the agent read `spoken_answer` during the same turn. Do not require `{{execution_id}}` as a tool argument; Bolna's documented function variables do not include it, and web calls may not have a telephony call SID. Configure the agent webhook at `/api/voiceops/bolna-webhook` with `X-Argus-Webhook-Token` set to `ARGUS_BOLNA_WEBHOOK_TOKEN`.
+## Configure Bolna VoiceOps
 
-For the live browser call in the VoiceOps tab, set `BOLNA_API_KEY` and `BOLNA_AGENT_ID` as server secrets. The tab requests a short-lived single-use session from `POST /api/bolna-session`; the Bolna key is never sent to the browser. Bolna's Web Call SDK must be enabled for your account. Configure a Bolna **custom function** named `get_documented_operator_guidance` that sends the caller's question and the current sensor context to `POST /api/voiceops/answer`. Have the agent read `spoken_answer` in the same turn and honor `escalate`; never have it invent equipment instructions when the function errors or reports low evidence. Configure the completed-execution webhook in Bolna's Extractions settings to post to `/api/voiceops/bolna-webhook`, adding an `X-Argus-Webhook-Token` header. The endpoint upserts by execution ID because Bolna sends multiple status updates; treat `completed` as final (the `call-disconnected` event can arrive before transcript, duration, and recording data are complete).
+### 1. Add server-side secrets
 
-The session URL defaults to `http(s)://<same-host>:8000/api/bolna-session` for local Docker, so publish both ports with `-p 8501:8501 -p 8000:8000`. For hosted HTTPS, set `ARGUS_VOICEOPS_API_URL` to the public HTTPS origin that routes `/api/*` to the FastAPI service on port 8000. The UI origin and API route must both be reachable from the browser; do not expose Bolna credentials in the page.
+Set these values in `.env` for Docker Compose or in your hosting provider's
+secret manager. Use the same agent ID configured in Bolna. Generate two
+different random Argus tokens.
 
-The API credentials are deliberately separate from Bolna's own account API key. Keep all tokens and the Groq key in the host's secret manager; never put them in a public repository or the browser. The Bolna agent and callback must use HTTPS in deployment. Bolna documents source IPs `13.203.39.153`, `13.126.9.249`, and `13.202.133.53` for tool calls and webhooks when firewall allowlisting is used.
+| Variable | Purpose |
+| --- | --- |
+| `BOLNA_AGENT_ID` | Voice agent used for browser calls |
+| `BOLNA_API_KEY` | Server-side key used to create Bolna sessions |
+| `GROQ_API_KEY` | Generates Echo and VoiceOps responses |
+| `ARGUS_VOICEOPS_API_TOKEN` | Authenticates Bolna custom-function requests |
+| `ARGUS_BOLNA_WEBHOOK_TOKEN` | Authenticates Bolna execution webhooks |
 
-The app opens at `http://localhost:8501`. The local storage directory is ignored by Git.
+Never commit `.env`, expose these secrets in the browser, or share them in
+screenshots. The Argus tokens are separate from Bolna's account API key.
+
+### 2. Start the app and check its health
+
+With Docker Compose, open the app at `http://localhost:8501` and check the API
+at `http://localhost:8000/health`. The local storage directory is ignored by
+Git.
+
+```powershell
+Copy-Item .env.example .env
+# Edit .env locally, then:
+docker compose up --build -d
+```
+
+Docker builds the FAISS index on first startup if one is not present. Compose
+stores the index and SQLite database in the local `ml/` directory. Use
+`docker compose logs -f` to inspect startup and `docker compose down` to stop
+the app; local data remains on disk.
+
+### 3. Enable the browser voice call
+
+Bolna's Web Call SDK must be enabled for the account. In the VoiceOps tab, the
+browser requests a short-lived, single-use session from `POST
+/api/bolna-session`. The server uses `BOLNA_API_KEY`; the browser never receives
+that key.
+
+### 4. Connect Bolna to Argus guidance
+
+Create a Bolna custom function named `get_documented_operator_guidance`. It
+should send the operator's current question and available sensor/event context
+to the Argus endpoint. Have the agent speak `spoken_answer` in the same turn and
+honor `escalate`. If the function fails or evidence is weak, the agent must say
+it cannot verify the guidance and direct the operator to human review. It must
+not invent equipment instructions.
+
+| Setting | Value |
+| --- | --- |
+| Method and path | `POST /api/voiceops/answer` |
+| Authentication | `Authorization: Bearer <ARGUS_VOICEOPS_API_TOKEN>` |
+| Request fields | `question`; optional `transcript`, `interaction_id`, and `latest_anomaly` |
+| Response fields | `answer`, `spoken_answer`, source excerpts/names, `confidence`, `confidence_label`, `escalate`, `model_version` |
+
+Do not require `{{execution_id}}` as a custom-function argument. Bolna's
+documented function variables do not include it, and browser calls may not have
+a telephony call SID.
+
+### 5. Record completed calls
+
+In Bolna's Extractions settings, configure the completed-execution webhook to
+send a request to `POST /api/voiceops/bolna-webhook` with the header
+`X-Argus-Webhook-Token: <ARGUS_BOLNA_WEBHOOK_TOKEN>`. The endpoint upserts
+updates by execution ID because Bolna can send multiple status updates. Treat
+`completed` as final: `call-disconnected` may arrive before the transcript,
+duration, and recording data are ready.
+
+### Local and hosted URLs
+
+For local Docker, publish both ports: `8501` for Streamlit and `8000` for the
+FastAPI service. Bolna's hosted agent cannot call `localhost`; local browser
+calls work only for the browser-to-app session flow.
+
+For hosted deployment, use public HTTPS. Set `ARGUS_VOICEOPS_API_URL` to the
+public HTTPS origin that routes `/api/*` to FastAPI on port `8000`. Both the UI
+origin and API route must be reachable from the browser. If firewall
+allowlisting is enabled, Bolna documents these source IPs for tool calls and
+webhooks: `13.203.39.153`, `13.126.9.249`, and `13.202.133.53`.
 
 ## Build and deploy
 
 ### Run with Docker Compose
 
-Copy `.env.example` to `.env`, fill in the Bolna and Groq credentials and the two separate Argus secrets, then start Docker Desktop and run:
+Copy `.env.example` to `.env`, add the secrets listed in
+[Configure Bolna VoiceOps](#configure-bolna-voiceops), then start Docker
+Desktop and run:
 
 ```powershell
 Copy-Item .env.example .env
@@ -136,9 +213,14 @@ Copy-Item .env.example .env
 docker compose up --build -d
 ```
 
-Open `http://localhost:8501`. The API health endpoint is `http://localhost:8000/health`. Compose persists the generated FAISS index and SQLite database in the local ignored `ml/` directory. To inspect startup/indexing logs use `docker compose logs -f`; to stop the app use `docker compose down` (the local data directory remains).
+Open `http://localhost:8501`. The API health endpoint is
+`http://localhost:8000/health`. Compose persists the generated FAISS index and
+SQLite database in the local ignored `ml/` directory. See
+[Configure Bolna VoiceOps](#configure-bolna-voiceops) for agent setup.
 
-For Bolna custom functions and webhooks, local `localhost` is not publicly reachable. Deploy this same Compose service behind public HTTPS before configuring Bolna to call `/api/voiceops/answer` and `/api/voiceops/bolna-webhook`.
+Bolna custom functions and webhooks cannot reach local `localhost`. Deploy this
+Compose service behind public HTTPS before configuring Bolna to call the
+guidance and webhook endpoints.
 
 GitHub Actions builds the Docker image on pushes to `main` and pull requests. It does not publish to a registry or deploy to a cloud account; deployment remains an explicit operator action.
 
@@ -147,7 +229,14 @@ docker build -t argus-echo:local .
 docker run --rm -p 8501:8501 -e GROQ_API_KEY=your_groq_api_key argus-echo:local
 ```
 
-The Kubernetes manifests are in `k8s/`. Configure `GROQ_API_KEY`, `BOLNA_API_KEY`, `BOLNA_AGENT_ID`, `ARGUS_VOICEOPS_API_TOKEN`, and `ARGUS_BOLNA_WEBHOOK_TOKEN` as Kubernetes Secrets before deploying; `k8s/secret.example.yaml` is only a placeholder template. Replace the example `ARGUS_VOICEOPS_API_URL` and `ARGUS_UI_ORIGINS` values in `k8s/deployment.yaml` with the public HTTPS app/API origin. The free deployment target should be selected before public launch: this app stores SQLite and the generated FAISS index locally, so a host with ephemeral storage will lose audit records and index files on restart unless the index is rebuilt and durable database storage is configured.
+The Kubernetes manifests are in `k8s/`. Configure the five variables listed in
+[Configure Bolna VoiceOps](#configure-bolna-voiceops) as Kubernetes Secrets;
+`k8s/secret.example.yaml` is only a placeholder. Replace the example
+`ARGUS_VOICEOPS_API_URL` and `ARGUS_UI_ORIGINS` values in
+`k8s/deployment.yaml` with the public HTTPS app/API origin. Choose a host with
+persistent storage before public launch: ephemeral storage loses SQLite audit
+records and the FAISS index on restart unless the index can be rebuilt and the
+database has durable storage.
 
 ## Model and data notes
 
