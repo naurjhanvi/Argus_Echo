@@ -1,0 +1,19 @@
+services:
+  argus-voiceops:
+    build:
+      context: .
+    image: argus-voiceops:local
+    container_name: argus-voiceops
+    env_file:
+      - .env
+    environment:
+      ARGUS_STORAGE_DIR: /app/ml
+      ARGUS_DB_PATH: /app/ml/argus_echo.db
+      ARGUS_BUILD_INDEX_ON_STARTUP: "true"
+    ports:
+      - "8501:8501"
+      - "8000:8000"
+    volumes:
+      - ./ml:/app/ml
+      - ./data:/app/data:ro
+    restart: unless-stopped

@@ -31,16 +31,41 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8501
+            - containerPort: 8000
           env:
             - name: GROQ_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: argus-echo-secrets
                   key: GROQ_API_KEY
+            - name: BOLNA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: argus-echo-secrets
+                  key: BOLNA_API_KEY
+            - name: BOLNA_AGENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: argus-echo-secrets
+                  key: BOLNA_AGENT_ID
+            - name: ARGUS_VOICEOPS_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: argus-echo-secrets
+                  key: ARGUS_VOICEOPS_API_TOKEN
+            - name: ARGUS_BOLNA_WEBHOOK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: argus-echo-secrets
+                  key: ARGUS_BOLNA_WEBHOOK_TOKEN
             - name: ARGUS_STORAGE_DIR
               value: /app/ml
             - name: ARGUS_DB_PATH
               value: /app/ml/argus_echo.db
+            - name: ARGUS_VOICEOPS_API_URL
+              value: https://argus.example.com
+            - name: ARGUS_UI_ORIGINS
+              value: https://argus.example.com
             - name: ARGUS_SQLITE_TIMEOUT_SECONDS
               value: "30"
             - name: ARGUS_MAX_TRAINING_ROWS

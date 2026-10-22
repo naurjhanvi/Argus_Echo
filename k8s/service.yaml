@@ -11,3 +11,6 @@ spec:
     - name: http
       port: 80
       targetPort: 8501
+    - name: voiceops-api
+      port: 8000
+      targetPort: 8000

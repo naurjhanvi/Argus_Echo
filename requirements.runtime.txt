@@ -14,3 +14,6 @@ faiss-cpu
 sentence-transformers
 pypdf
 docx2txt
+fastapi
+uvicorn[standard]
+requests

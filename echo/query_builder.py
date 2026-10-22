@@ -1,54 +1,31 @@
 from argus_logger import get_recent_anomalies, get_all_anomalies
 
-ATTACK_DESCRIPTIONS = {
-    "replay_attack": (
-        "a Replay Attack — the sensor variance dropped to exactly 0.0, "
-        "indicating the sensor output has been frozen and is broadcasting "
-        "a static baseline while physical conditions may have changed."
-    ),
-    "low_entropy_anomaly": (
-        "a Low-Entropy Anomaly — near-zero variance combined with an elevated "
-        "MSE score, suggesting the sensor is artificially stable in a system "
-        "where natural thermodynamic noise is expected."
-    ),
-    "high_deviation_anomaly": (
-        "a High-Deviation Anomaly — the LSTM-AE reconstruction error is "
-        "significantly above the normal baseline, indicating sensor readings "
-        "that deviate sharply from learned normal behaviour."
-    ),
-    "subtle_anomaly": (
-        "a Subtle Anomaly — MAE score is above the detection threshold but "
-        "variance remains present, suggesting early-stage deviation or "
-        "gradual sensor drift."
-    ),
-    "unknown": (
-        "an anomaly of unclassified type — insufficient signal characteristics "
-        "to determine attack vector."
-    )
-}
-
 def build_query_from_anomaly(anomaly: dict) -> str:
-    attack_desc = ATTACK_DESCRIPTIONS.get(
-        anomaly.get("attack_hint", "unknown"),
-        ATTACK_DESCRIPTIONS["unknown"]
+    telemetry = anomaly.get("telemetry") or {}
+    threshold = telemetry.get("anomaly_threshold")
+    threshold_detail = (
+        f"The calibrated threshold for this model is {threshold}; "
+        f"this score is {telemetry.get('score_above_threshold', 'not available')} times that threshold."
+        if threshold is not None
+        else "No calibrated threshold is recorded for this event."
     )
-
     query = f"""
-An anomaly has been detected by the Argus Edge AI system in a safety-critical 
-industrial control system. Here are the technical details:
+Argus detected a telemetry deviation from the trained baseline. Explain this
+recorded event for an industrial operator using the provided evidence. Do not
+diagnose a physical fault or cyberattack from a heuristic pattern label.
 
 - Sensor ID: {anomaly['sensor_id']}
-- Facility: {anomaly['facility']}
-- Timestamp: {anomaly['timestamp']}
-- MAE Anomaly Score: {anomaly['mse_score']} (detection threshold: 0.13)
+- Source file / facility label: {anomaly['facility']}
+- Row / timestamp index: {anomaly['timestamp']}
+- Window reconstruction error: {anomaly['mse_score']} ({threshold_detail})
 - Sensor Variance: {anomaly['variance']}
-- Detected Pattern: {attack_desc}
+- Descriptive pattern heuristic: {anomaly.get('attack_hint', 'unknown')}
 
-Based on ICS security literature and known cyber-physical attack patterns:
-1. What attack technique does this pattern most closely match?
-2. What is the recommended immediate operator response?
-3. What downstream systems or sensors should be cross-checked?
-4. What is the potential physical consequence if this goes unaddressed?
+Explain what Argus measured and its limits, where the event was recorded, and
+which safe verification and escalation checks are supported by the cited
+documents. Treat reconstruction error as a deviation score, not confidence or
+proof of an anomaly. Distinguish general ICS guidance from approved site procedures.
+Never prescribe equipment control changes or claim a diagnosis.
 """.strip()
 
     return query
@@ -75,22 +52,22 @@ def build_summary_query(n: int = 5) -> str:
     lines = []
     for a in recent:
         lines.append(
-            f"- Sensor {a['sensor_id']} | Facility: {a['facility']} | "
-            f"MAE: {a['mse_score']} | Pattern: {a['attack_hint']} | "
-            f"Time: {a['timestamp']}"
+            f"- Sensor {a['sensor_id']} | File/facility label: {a['facility']} | "
+            f"Window reconstruction error: {a['mse_score']} | "
+            f"Pattern heuristic: {a['attack_hint']} | Row: {a['timestamp']}"
         )
 
     query = f"""
-The Argus Edge AI system has detected {len(recent)} anomalies recently 
-in safety-critical ICS infrastructure. Summary:
+Argus detected {len(recent)} telemetry deviations from trained baselines.
+Summarize the logged evidence for an industrial operator without diagnosing
+faults or cyberattacks. Summary:
 
 {chr(10).join(lines)}
 
-Based on this pattern of detections:
-1. Is there evidence of a coordinated multi-sensor attack?
-2. Which facility appears most at risk?
-3. What attack campaign does this pattern suggest?
-4. What is the recommended security posture for the operator?
+Explain which sensors and file labels were involved, whether multiple events
+occurred close together, what location or time metadata is missing, and which
+safe verification/escalation checks the cited documents support. Do not infer
+an attack campaign, physical cause, or physical consequence from these scores.
 """.strip()
 
     return query

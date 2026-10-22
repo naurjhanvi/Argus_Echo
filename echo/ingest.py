@@ -20,6 +20,22 @@ def load_document_text(file_path: str) -> str:
         import docx2txt
 
         return docx2txt.process(file_path) or ""
+    if ext == ".inp":
+        # EPANET INP is already a text format. Prefix each record with its
+        # section so retrieved network entries retain their meaning in RAG.
+        raw_text = Path(file_path).read_text(encoding="utf-8", errors="ignore")
+        current_section = "EPANET NETWORK MODEL"
+        readable_lines = []
+        for raw_line in raw_text.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            if line.startswith("[") and line.endswith("]"):
+                current_section = line.strip("[] ").upper()
+                readable_lines.append(f"Section: {current_section}")
+            else:
+                readable_lines.append(f"{current_section}: {line}")
+        return "\n".join(readable_lines)
     raise ValueError(f"Unsupported file type: {ext}")
 
 
@@ -47,7 +63,7 @@ def ingest_documents(file_paths: list[str]):
     for path in file_paths:
         for index, chunk in enumerate(chunk_text(load_document_text(path))):
             texts.append(chunk)
-            metadatas.append({"source": path, "chunk": index})
+            metadatas.append({"source": Path(path).name, "source_path": str(Path(path)), "chunk": index})
 
     if not texts:
         raise ValueError("No text could be extracted from the supplied documents.")
@@ -68,7 +84,7 @@ def load_vectorstore():
 
 
 def ingest_data_folder(folder_path: str = "data"):
-    supported = [".pdf", ".txt", ".docx"]
+    supported = [".pdf", ".txt", ".docx", ".inp"]
     file_paths = [
         os.path.join(folder_path, f)
         for f in os.listdir(folder_path)

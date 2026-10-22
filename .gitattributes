@@ -1,0 +1,3 @@
+# Preserve published whitespace in source documents while keeping source diffs useful.
+data/*.txt whitespace=-blank-at-eol
+data/*.INP whitespace=-blank-at-eol

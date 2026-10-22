@@ -17,7 +17,7 @@
 | ML pipeline | Preprocessing, sequence creation, training, and scoring | TensorFlow/Keras LSTM autoencoder |
 | Metadata | Accounts, models, runs, anomalies, and generated answers | SQLite database on the persistent volume |
 | Artifacts | Model, scaler, config, uploaded telemetry, and vector index | Files under the mounted `/app/ml` storage path |
-| Knowledge retrieval | Index and search ICS documents | FAISS with local embeddings |
+| Knowledge retrieval | Index ICS documents and rank passages by lexical term overlap | FAISS stores the local document index; term matching selects passages for grounded answers |
 | Text generation | Compose grounded operator-facing guidance | External Groq API; `GROQ_API_KEY` is supplied as a Kubernetes Secret |
 | Runtime | Package and run Streamlit | Docker image, port 8501 |
 | Orchestration | Schedule the app and expose it | GKE Deployment and LoadBalancer Service |

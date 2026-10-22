@@ -1,0 +1,24 @@
+Argus Echo curated reference notes for the BATADAL C-Town benchmark
+Prepared from the public sources listed below. This file is a dataset reference, not an operating procedure.
+
+SYSTEM AND DATASET SCOPE
+BATADAL is a simulated water-distribution-system benchmark based on the C-Town network. Training Dataset 1 is a one-year simulation of normal operation. Training Dataset 2 is about six months and contains several partially labeled attacks. The official test dataset is about three months, contains attacks, and is unlabeled; the official site separately publishes attack information. The official dataset page states that flow is measured in LPS and pressure and water levels are in meters.
+
+BATADAL SENSOR-TAG REFERENCE
+The BATADAL FAQ identifies the sensors in the CSVs as covering tanks T1 through T7, pumps PU1 through PU11, the actuated valve V2, and pressure nodes including J280 and J269. It clarifies that V2 is the only actuated valve in the C-Town map, is connected to PLC3, and is the valve for which readings are available. The rules figure's V1 label is an error; use V2 when interpreting the dataset.
+
+A published BATADAL anomaly-detection paper labels the dataset signal S_V2 as “on/off” in a plotted example. Read with the BATADAL FAQ, this supports describing S_V2 as the on/off signal associated with simulated valve V2. It does not establish a physical valve state, a site location, or an approved instruction for a real facility.
+
+DATASET ATTACK CONTEXT
+The BATADAL FAQ reports these identified Dataset 4 attack intervals and associated pump-control inconsistencies: September 14–15, PU10 and PU11; October 9–11, PU2; October 30–November 1, PU2; November 27, PU7; December 6–9, PU6 and PU7. The FAQ warns that other attacks may be undiscovered. These are benchmark descriptions, not confirmed diagnoses for a particular Argus event. Match an event to an interval only when its timestamp format, date, and dataset version are verified; do not infer an attack from a similar sensor tag or score alone.
+
+EPANET MODEL LIMITATION
+CTOWN.INP describes the simulated network and actuator control logic and is useful for network context. The official BATADAL FAQ warns that the demand patterns in the supplied INP file differ from those used to create the published BATADAL CSV datasets, and that the original demand values are not provided. Do not use this INP file to claim that a calculated value is the expected reading for a CSV timestamp, to synthesize matching telemetry, or to validate the CSV model as a physical simulation.
+
+SAFE INTERPRETATION
+Argus reconstruction error indicates deviation from the model's learned normal baseline. It is not a probability, confirmed anomaly diagnosis, cyberattack finding, or operator instruction. Use the benchmark references to explain dataset tag meanings and publicly described attack context. For real equipment actions, follow the site's approved procedure and have a qualified operator review the event.
+
+PUBLIC SOURCES
+1. BATADAL official dataset page: https://www.batadal.net/data.html
+2. BATADAL official FAQ (14 December 2016): https://www.batadal.net/faq.html
+3. “Efficient Cyber Attack Detection in Industrial Control Systems Using Lightweight Neural Networks and PCA,” public PDF; Figure 7 labels S_V2 as on/off: https://zenodo.org/records/4543862/files/Efficient%20Cyber%20Attack%20Detection%20in%20Industrial%20Control%20Systems%20Using%20Lightweight%20Neural%20Networks%20and%20PCA.pdf

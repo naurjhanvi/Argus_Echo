@@ -60,11 +60,11 @@ def get_all_anomalies():
             return []
 
 def infer_attack_hint(variance: float, mse_score: float) -> str:
+    """Return a descriptive pattern label, never a cyberattack diagnosis."""
     if variance == 0.0:
-        return "replay_attack"          
-    elif variance < 0.01 and mse_score > 1.0:
-        return "low_entropy_anomaly"   
-    elif mse_score > 3.0:
-        return "high_deviation_anomaly" 
-    else:
-        return "subtle_anomaly"
+        return "near_constant_signal"
+    if variance < 0.01 and mse_score > 1.0:
+        return "low_variability_high_reconstruction_error"
+    if mse_score > 3.0:
+        return "high_reconstruction_error"
+    return "deviation_above_baseline"

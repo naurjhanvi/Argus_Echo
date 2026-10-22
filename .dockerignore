@@ -22,3 +22,6 @@ challenges.md
 htmlcov/
 dist/
 build/
+tmp/
+.codex_build/
+pitch/

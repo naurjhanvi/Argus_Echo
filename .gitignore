@@ -32,6 +32,8 @@ ml/
 
 # Local notes/reports not intended for GitHub
 challenges.md
+tmp/
+.codex_build/
 
 # Test/build artifacts
 .pytest_cache/
